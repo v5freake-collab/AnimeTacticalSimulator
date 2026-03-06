@@ -1,0 +1,2167 @@
+-- GLOBAL INSTANCE CLEANUP
+-- ═══════════════════════════════════════
+local g = getgenv and getgenv() or shared
+if g.NebuState_AnimeTactical then
+    pcall(function() g.NebuState_AnimeTactical.Nebublox_Running = false end)
+    pcall(function()
+        if g.NebuState_AnimeTactical.AntiAfkConnection then
+            g.NebuState_AnimeTactical.AntiAfkConnection:Disconnect()
+        end
+    end)
+    pcall(function()
+        if g.NebuState_AnimeTactical.NebuBlox_NoClipConnection then
+            g.NebuState_AnimeTactical.NebuBlox_NoClipConnection:Disconnect()
+        end
+    end)
+    pcall(function()
+        if g.NebuState_AnimeTactical.NebuBlox_MovementConnection then
+            g.NebuState_AnimeTactical.NebuBlox_MovementConnection:Disconnect()
+        end
+    end)
+    task.wait(0.2)
+end
+
+g.NebuState_AnimeTactical = {}
+local NebuState = g.NebuState_AnimeTactical
+NebuState.Nebublox_Running = true
+NebuState.RaidStartTime = 0
+NebuState.RaidTeleported = false
+
+-- Services (cached once)
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local TextChatService = game:GetService("TextChatService")
+
+local player = Players.LocalPlayer
+
+-- Universal Request Function
+local RequestFunc = (syn and syn.request) or (http and http.request) or request or http_request or (fluxus and fluxus.request)
+
+-- Remove lingering blur effects with name MyUI_Blur
+local function removeMyBlur()
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("BlurEffect") and v.Name == "MyUI_Blur" then
+            v:Destroy()
+        end
+    end
+end
+removeMyBlur()
+
+-- Helper function to safely destroy UI elements
+local function safeDestroy(instance)
+    if instance and instance.Destroy then
+        pcall(function() instance:Destroy() end)
+    end
+end
+
+-- NEBUBLOX CLOSE UI (hotkey: RightShift + K)
+do
+    local function stopNebustates()
+        local genvTable = getgenv and getgenv() or shared
+        for k, v in pairs(genvTable) do
+            if type(k) == "string" and type(v) == "table" and k:lower():find("nebustate") then
+                v.Nebublox_Running = false
+                v.AutoAttack = false
+                v.AutoCollect = false
+                v.FastAutoClick = false
+                v.AutoSkipAnimations = false
+            end
+        end
+    end
+
+    local function closeNebubloxUI()
+        stopNebustates()
+
+        pcall(function()
+            for _, v in ipairs(Lighting:GetChildren()) do
+                if v:IsA("BlurEffect") and (v.Name == "NebubloxBlur" or v.Name:lower():find("nebublox")) then
+                    v:Destroy()
+                end
+            end
+        end)
+
+        local function scanAndClose(parent)
+            for _, inst in ipairs(parent:GetChildren()) do
+                if inst:IsA("ScreenGui") then
+                    local n = (inst.Name or ""):lower()
+                    if n:find("nebublox") or n:find("animetactical") or n:find("tactical") then
+                        safeDestroy(inst)
+                    end
+                end
+            end
+        end
+
+        scanAndClose(CoreGui)
+        scanAndClose(player:WaitForChild("PlayerGui"))
+    end
+
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if UserInputService:IsKeyDown(Enum.KeyCode.RightShift) and input.KeyCode == Enum.KeyCode.K then
+            closeNebubloxUI()
+        end
+    end)
+end
+
+-- Configuration (key system removed)
+local Configuration = {
+    Discord = "https://discord.gg/nebublox",
+    DiscordID = "1474223570656956538"
+}
+
+-- UI ELEMENTS FOR INTRO (key entry removed)
+local NebuUI = Instance.new("ScreenGui")
+NebuUI.Name = "NebubloxAnimeTactical"
+NebuUI.IgnoreGuiInset = true
+NebuUI.ResetOnSpawn = false
+pcall(function() NebuUI.Parent = CoreGui end)
+if not NebuUI.Parent then NebuUI.Parent = player:WaitForChild("PlayerGui") end
+
+local Background = Instance.new("Frame")
+Background.Size = UDim2.new(1, 0, 1, 0)
+Background.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Background.BorderSizePixel = 0
+Background.Parent = NebuUI
+
+local WelcomeText = Instance.new("TextLabel")
+WelcomeText.Size = UDim2.new(1, 0, 1, 0)
+WelcomeText.BackgroundTransparency = 1
+WelcomeText.Font = Enum.Font.Michroma
+WelcomeText.Text = "ANIME TACTICAL IS FORMING..."
+WelcomeText.TextColor3 = Color3.fromRGB(170, 0, 255)
+WelcomeText.TextSize = 24
+WelcomeText.TextTransparency = 1
+WelcomeText.ZIndex = 10
+WelcomeText.Parent = Background
+
+local InitializeApp -- Forward Declaration
+
+local function playBigBang()
+    local void = Instance.new("Frame")
+    void.Size = UDim2.new(0, 0, 0, 0); void.Position = UDim2.new(0.5, 0, 0.5, 0); void.AnchorPoint = Vector2.new(0.5, 0.5); void.BackgroundColor3 = Color3.fromRGB(10, 0, 20); void.Parent = Background
+    local voidCorner = Instance.new("UICorner"); voidCorner.CornerRadius = UDim.new(1, 0); voidCorner.Parent = void
+    local voidStroke = Instance.new("UIStroke"); voidStroke.Color = Color3.fromRGB(170, 0, 255); voidStroke.Thickness = 3; voidStroke.Parent = void
+    
+    TweenService:Create(WelcomeText, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+    TweenService:Create(void, TweenInfo.new(1.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 80, 0, 80)}):Play()
+    task.wait(1.2)
+
+    local corners = {UDim2.new(-0.2, 0, -0.2, 0), UDim2.new(1.2, 0, -0.2, 0), UDim2.new(-0.2, 0, 1.2, 0), UDim2.new(1.2, 0, 1.2, 0)}
+    local meteors = {}
+    for i, startPos in ipairs(corners) do
+        local meteor = Instance.new("Frame")
+        meteor.Size = UDim2.new(0, 15, 0, 15); meteor.Position = startPos; meteor.AnchorPoint = Vector2.new(0.5, 0.5); meteor.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(0, 255, 204) or Color3.fromRGB(255, 0, 128); meteor.Parent = Background
+        local mCorner = Instance.new("UICorner"); mCorner.CornerRadius = UDim.new(1, 0); mCorner.Parent = meteor
+        local mGlow = Instance.new("UIStroke"); mGlow.Color = meteor.BackgroundColor3; mGlow.Thickness = 4; mGlow.Transparency = 0.5; mGlow.Parent = meteor
+        table.insert(meteors, meteor)
+        TweenService:Create(meteor, TweenInfo.new(0.6, Enum.EasingStyle.Cubic, Enum.EasingDirection.In), {Position = UDim2.new(0.5, 0, 0.5, 0), Size = UDim2.new(0, 5, 0, 5)}):Play()
+    end
+
+    task.wait(0.6)
+    for _, m in ipairs(meteors) do m:Destroy() end
+    TweenService:Create(WelcomeText, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    
+    local flash = Instance.new("Frame")
+    flash.Size = UDim2.new(0, 50, 0, 50); flash.Position = UDim2.new(0.5, 0, 0.5, 0); flash.AnchorPoint = Vector2.new(0.5, 0.5); flash.BackgroundColor3 = Color3.fromRGB(0, 255, 204); flash.ZIndex = 5; flash.Parent = Background
+    local fCorner = Instance.new("UICorner"); fCorner.CornerRadius = UDim.new(1, 0); fCorner.Parent = flash
+
+    local explosionSize = math.max(Background.AbsoluteSize.X, Background.AbsoluteSize.Y) * 1.5
+    local flashTween = TweenService:Create(flash, TweenInfo.new(0.8, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, explosionSize, 0, explosionSize), BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(255, 255, 255)})
+    flashTween:Play()
+    
+    TweenService:Create(void, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+    task.delay(0.3, function() void:Destroy() end)
+
+    TweenService:Create(Background, TweenInfo.new(1), {BackgroundTransparency = 0.3}):Play()
+    flashTween.Completed:Wait()
+    flash:Destroy()
+    
+    -- After intro, destroy UI and launch app
+    NebuUI:Destroy()
+    InitializeApp()
+end
+
+-- APP INITIALIZATION
+function InitializeApp()
+    local globalEnv = getgenv and getgenv() or shared
+    if globalEnv.NebuState_AnimeTactical then
+        pcall(function() globalEnv.NebuState_AnimeTactical.Nebublox_Running = false end)
+        task.wait(0.2)
+    end
+    globalEnv.NebuState_AnimeTactical = {Nebublox_Running = true}
+    local NebuState = globalEnv.NebuState_AnimeTactical
+
+    pcall(function()
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("BlurEffect") and v.Name == "NebubloxBlur" then
+                v:Destroy()
+            end
+        end
+    end)
+
+    if hookmetamethod then
+        task.spawn(function()
+            pcall(function()
+                local oldIndex
+                oldIndex = hookmetamethod(game, "__index", function(self, key)
+                    if not checkcaller() and tostring(self) == "Boss_Visual" and tostring(key) == "Humanoid" then
+                        if typeof(self) == "Instance" and self:IsA("Model") and not self:FindFirstChild("Humanoid") then
+                            return {Health = 100, MaxHealth = 100}
+                        end
+                    end
+                    return oldIndex(self, key)
+                end)
+            end)
+        end)
+    end
+
+    local Signal = {}
+    Signal.__index = Signal
+    function Signal.new()
+        local self = setmetatable({}, Signal)
+        self._bindable = Instance.new("BindableEvent")
+        return self
+    end
+    function Signal:Connect(fn) return self._bindable.Event:Connect(fn) end
+    function Signal:Fire(...) self._bindable:Fire(...) end
+    function Signal:Destroy() self._bindable:Destroy() end
+
+    local InventoryBus = {}
+    InventoryBus.__index = InventoryBus
+    function InventoryBus.new()
+        return setmetatable({ Inventory = nil, LastSync = 0, Changed = Signal.new() }, InventoryBus)
+    end
+    function InventoryBus:Set(inv, source)
+        if type(inv) ~= "table" then return false end
+        self.Inventory = inv
+        self.LastSync = os.clock()
+        self.Changed:Fire(inv, source)
+        return true
+    end
+
+    local InventoryController = {}
+    InventoryController.__index = InventoryController
+    function InventoryController.new()
+        return setmetatable({ Bus = InventoryBus.new(), Running = false }, InventoryController)
+    end
+    function InventoryController:Start()
+        if self.Running then return end
+        self.Running = true
+        
+        pcall(function()
+            local invEvent = ReplicatedStorage:WaitForChild("InventoryEvent", 5)
+            if invEvent then
+                invEvent.OnClientEvent:Connect(function(inventory)
+                    self.Bus:Set(inventory, "InventoryEvent")
+                end)
+            end
+        end)
+
+        local Shared = ReplicatedStorage:FindFirstChild("Shared")
+        local remotes = Shared and Shared:FindFirstChild("Remotes")
+        if remotes then
+            local reInventoryChanged = remotes:FindFirstChild("InventoryChanged")
+            if reInventoryChanged then
+                reInventoryChanged.OnClientEvent:Connect(function(payload)
+                    self.Bus:Set(payload, "InventoryChanged")
+                end)
+            end
+        end
+
+        task.spawn(function()
+            while self.Running and NebuState.Nebublox_Running do
+                if remotes and remotes:FindFirstChild("GetInventory") then
+                    local ok, data = pcall(function() return remotes.GetInventory:InvokeServer() end)
+                    if ok then self.Bus:Set(data, "GetInventory") end
+                end
+                task.wait(10)
+            end
+        end)
+    end
+    
+    local invController = InventoryController.new()
+    invController:Start()
+
+    local rawCode = game:HttpGet("https://raw.githubusercontent.com/LilNugOfWisdom/NebubloxUI/main/NebubloxUI.lua")
+    local success, Nebublox = pcall(function() 
+        local fn, err = loadstring(rawCode)
+        if not fn then return nil end
+        return fn()
+    end)
+    
+    if success and Nebublox then
+        Nebublox:IgniteKillSwitch()
+        
+        NebuState.MainWindow = Nebublox:MakeWindow({
+            Title = "NEBUBLOX",
+            Subtitle = "<font color='#FFD700'><b>Anime</b></font> <font color='#6B0080'><b>Tactical</b></font> 🌌",
+            Size = UDim2.new(0.85, 0, 0.85, 0),
+            Profile = true,
+            CyberBackground = true,
+            TitleGradient = true
+        })
+        NebuState.MainWindow:SetProfileDesc("Overlord")
+        NebuState.MainWindow._hideNotifications = true
+
+        -- SUMMONER ENGINE
+        NebuState.SelectedSummoner = nil
+        NebuState.AutoSummonActive = false
+        NebuState.AutoCombatActive = false
+
+        local CombatPackets = {}
+        pcall(function()
+            local mgmt = require(game.ReplicatedStorage.Modules.Packets.Managements)
+            CombatPackets.Automatic = mgmt:GetPacket("Combats", "Automatic")
+            CombatPackets.Single = mgmt:GetPacket("Combats", "Single")
+            CombatPackets.AutoAttack = mgmt:GetPacket("Combats", "AutoAttack")
+        end)
+
+        task.spawn(function()
+            while NebuState.Nebublox_Running do
+                if NebuState.AutoCombatActive then
+                    pcall(function()
+                        if CombatPackets.Single then
+                            CombatPackets.Single.send()
+                        end
+                    end)
+                end
+                task.wait(0.08)
+            end
+        end)
+
+        local function GetSummonerList()
+            local list = {"None"}
+            pcall(function()
+                local summoners = workspace:FindFirstChild("Summoners")
+                if summoners then
+                    local seen = {}
+                    for _, s in ipairs(summoners:GetChildren()) do
+                        if s:IsA("Model") and not seen[s.Name] then
+                            seen[s.Name] = true
+                            table.insert(list, s.Name)
+                        end
+                    end
+                end
+            end)
+            return list
+        end
+
+        local function FindSummoner(name)
+            local summoners = workspace:FindFirstChild("Summoners")
+            if summoners and name and name ~= "None" then
+                return summoners:FindFirstChild(name)
+            end
+            return nil
+        end
+
+        local function TeleportToSummoner(summonerModel)
+            pcall(function()
+                local char = player.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root and summonerModel and summonerModel.PrimaryPart then
+                    root.CFrame = summonerModel.PrimaryPart.CFrame * CFrame.new(0, 0, 3)
+                end
+            end)
+        end
+
+        task.spawn(function()
+            while NebuState.Nebublox_Running do
+                if NebuState.AutoSummonActive then
+                    pcall(function()
+                        local summoner = FindSummoner(NebuState.SelectedSummoner)
+                        if summoner then
+                            local char = player.Character
+                            local root = char and char:FindFirstChild("HumanoidRootPart")
+                            if root and summoner.PrimaryPart then
+                                local dist = (root.Position - summoner.PrimaryPart.Position).Magnitude
+                                if dist > 8 then
+                                    TeleportToSummoner(summoner)
+                                    task.wait(0.5)
+                                end
+                            end
+
+                            if not player:FindFirstChild("Summon_Debounce") and not player:FindFirstChild("In_Queue") then
+                                ReplicatedStorage.Remotes.Summoners.RemoteEvent:FireServer(summoner, "Multi")
+                            end
+                        end
+                    end)
+                end
+                task.wait(0.3)
+            end
+        end)
+
+        local KnownCodes = {
+            "1MVISITLETSGOO", "Justkidding_thisisrealcode", "SORRYFORAUTOSUMMONS",
+            "NoMoreBugsPls", "Sorry4Delay", "RELEASED!", "#BestSimOfAllTime",
+            "ThxForSupport", "4D2TKFSZRC", "ATSForever"
+        }
+
+        local function AutoRedeemCodes()
+            pcall(function()
+                local codesRemote = ReplicatedStorage:FindFirstChild("Remotes") 
+                    and ReplicatedStorage.Remotes:FindFirstChild("Misc")
+                    and ReplicatedStorage.Remotes.Misc:FindFirstChild("CodesEvent")
+                if codesRemote then
+                    for _, code in ipairs(KnownCodes) do
+                        pcall(function() codesRemote:FireServer(code) end)
+                        task.wait(0.3)
+                    end
+                end
+            end)
+        end
+
+        pcall(function()
+            local messagesVisual = require(game.ReplicatedStorage.Modules.Misc.Messages_Visual)
+            if type(messagesVisual) == "table" and messagesVisual.Visuals then
+                messagesVisual.Visuals = function(textLabel, callbackFunc)
+                    if callbackFunc then task.spawn(callbackFunc) end
+                end
+            end
+            
+            local dialogues = require(game.ReplicatedStorage.Modules.NPCs.Configs.Dialogues)
+            if type(dialogues) == "table" and dialogues.Init then
+                dialogues.Init = function(playerRef, textArray, previewData, callbackFunc)
+                    if callbackFunc then task.spawn(callbackFunc) end
+                end
+            end
+        end)
+
+        -- HIDE SUMMON UI
+        pcall(function()
+            local summonUI = player.PlayerGui:FindFirstChild("Settings")
+                and player.PlayerGui.Settings:FindFirstChild("_Frame")
+                and player.PlayerGui.Settings._Frame:FindFirstChild("Usage")
+                and player.PlayerGui.Settings._Frame.Usage:FindFirstChild("BODY")
+                and player.PlayerGui.Settings._Frame.Usage.BODY:FindFirstChild("Interview")
+                and player.PlayerGui.Settings._Frame.Usage.BODY.Interview:FindFirstChild("Regular Summon UI")
+            if summonUI then
+                summonUI.Visible = false
+            end
+        end)
+
+        -- TABS
+        local HomeTab = NebuState.MainWindow:MakeTab({Name = "Home", Icon = "🏠"})
+        local DashTab = HomeTab:MakeSection({Name = "🚀 The Core"})
+
+        local welcomeRow = DashTab:AddRow({Columns = 1})
+        welcomeRow[1]:AddParagraph({
+            Title = "<font size='22' color='#00E6FF'><b>Welcome to the Expanse, " .. player.DisplayName .. "!</b></font>",
+            Content = "<font size='16' color='#AAAAAA'>At Nebublox, we've engineered a sanctuary among the stars designed to give you your time back. From gravitational Anti-AFK that keeps you anchored in-game to scripts that handle the heavy lifting while you drift through sleep, we've got your orbit covered.\n\nStay stellar, Void Walker 🟣</font>",
+            Center = true
+        })
+
+        local DmSec = HomeTab:MakeSection({Name = "📜 DarkMatterV1 Logs"})
+        local OLSec = HomeTab:MakeSection({Name = "👾 OVERLORD"})
+
+        task.spawn(function()
+            while task.wait(1) do
+                if not NebuState.Nebublox_Running then break end
+                pcall(function()
+                    local gems = "0"
+                    local yen = "0"
+                    
+                    -- Optimized Direct Data Source (User Confirmed)
+                    pcall(function()
+                        local pd = ReplicatedStorage:FindFirstChild("Players_Data") and ReplicatedStorage.Players_Data:FindFirstChild(player.Name)
+                        if pd and pd:FindFirstChild("Data") then
+                            if pd.Data:FindFirstChild("Gems") then gems = tostring(pd.Data.Gems.Value) end
+                            if pd.Data:FindFirstChild("Yen") then yen = tostring(pd.Data.Yen.Value) end
+                        end
+                    end)
+
+                    -- Fallback: leaderstats (Backup)
+                    if gems == "0" or yen == "0" then
+                        pcall(function()
+                            local ls = player:FindFirstChild("leaderstats")
+                            if ls then
+                                if (gems == "0") and ls:FindFirstChild("Gems") then gems = tostring(ls.Gems.Value) end
+                                if (yen == "0") and ls:FindFirstChild("Yen") then yen = tostring(ls.Yen.Value)
+                                elseif (yen == "0") and ls:FindFirstChild("Coins") then yen = tostring(ls.Coins.Value) end
+                            end
+                        end)
+                    end
+
+                    -- Final Backup: UI Visual Labels
+                    if gems == "0" or yen == "0" then
+                        pcall(function()
+                            local visual = player.PlayerGui:FindFirstChild("Visual") and player.PlayerGui.Visual:FindFirstChild("Increasing")
+                            if visual then
+                                if gems == "0" and visual:FindFirstChild("Gems") then
+                                    local txt = visual.Gems:FindFirstChild("Increasing") or visual.Gems:FindFirstChildWhichIsA("TextLabel", true)
+                                    if txt then gems = tostring(txt.Text or txt.Value or "0") end
+                                end
+                                if yen == "0" and visual:FindFirstChild("Yen") then
+                                    local txt = visual.Yen:FindFirstChild("Increasing") or visual.Yen:FindFirstChildWhichIsA("TextLabel", true)
+                                    if txt then yen = tostring(txt.Text or txt.Value or "0") end
+                                end
+                            end
+                        end)
+                    end
+
+                    local function FormatNumber(n)
+                        n = tostring(n):gsub(",", "")
+                        local num = tonumber(n)
+                        if not num then return n end
+                        if num >= 10^12 then return string.format("%.2ft", num / 10^12)
+                        elseif num >= 10^9 then return string.format("%.2fb", num / 10^9)
+                        elseif num >= 10^6 then return string.format("%.2fm", num / 10^6)
+                        elseif num >= 10^3 then return string.format("%.2fk", num / 10^3)
+                        else return tostring(num) end
+                    end
+
+                    local s1 = '<font size="16" color="#4DA6FF"><b> 💎 ' .. FormatNumber(gems) .. ' </b></font>'
+                    local s2 = '<font size="16" color="#FFD700"><b> 💰 ' .. FormatNumber(yen) .. ' </b></font>'
+                    NebuState.MainWindow:SetSidebarStats(s1, s2)
+                end)
+            end
+        end)
+
+        DmSec:AddParagraph({
+            Content = "v5.0 — Nebula UI Overhaul\nv4.0 — Junkie SDK Restore\nv3.0 — Advanced Inventory\nv2.0 — Big Bang Intro\nv1.0 — Foundation"
+        })
+
+        OLSec:AddParagraph({
+            Title = "<font color='#00E6FF'>MEET THE OVERLORD, NEBUBLOX</font>", 
+            Content = "<font color='#AA00FF'>You're looking at the result of way too much caffeine</font> and a <font color='#FF0066'>complete disregard for a normal sleep schedule</font>. I scripted this chaos so you could <font color='#00E6FF'>skip the grind</font> and get straight to the fun. <font color='#00E6FF'>Thanks for being here.</font>"
+        })
+
+        local dBtn = OLSec:AddButton({
+            Name = "<font color='#00E6FF'><b>Join the Community today!</b></font>", 
+            Icon = "user", 
+            Primary = true, 
+            Callback = function() 
+                setclipboard(Configuration.Discord) 
+                NebuState.MainWindow:Notify({
+                    Title = "<font color='#00E6FF'>Discord</font>", 
+                    Content = "<font color='#FF0066'><b>Invite link copied!</b></font> <i>Join us for updates, support, and a whole lot of fun!</i>", 
+                    Type = "info"
+                }) 
+            end
+        })
+
+        pcall(function()
+            if RequestFunc and Configuration.DiscordID ~= "" then
+                local lanLbl = Instance.new("TextLabel")
+                lanLbl.Size = UDim2.new(1, -160, 1, 0) 
+                lanLbl.Position = UDim2.new(0, 150, 0, 0)
+                lanLbl.BackgroundTransparency = 1
+                lanLbl.Text = "Fetching Lanyard..."
+                lanLbl.TextColor3 = Color3.fromRGB(240, 240, 240)
+                lanLbl.TextSize = 12
+                pcall(function() lanLbl.Font = Enum.Font.FredokaOne end)
+                lanLbl.TextXAlignment = Enum.TextXAlignment.Right
+                lanLbl.Parent = dBtn.Instance
+
+                task.spawn(function()
+                    local lastUpd = 0
+                    while task.wait(1) do
+                        if not NebuState.Nebublox_Running or not lanLbl.Parent then break end
+                        if tick() - lastUpd < 20 then continue end
+                        lastUpd = tick()
+                        pcall(function()
+                            local res = RequestFunc({
+                                Url = "https://api.lanyard.rest/v1/users/" .. Configuration.DiscordID,
+                                Method = "GET"
+                            })
+                            if res and res.Body then
+                                local data = HttpService:JSONDecode(res.Body)
+                                if data.success and data.data then
+                                    local status = data.data.discord_status or "offline"
+                                    local emoji = status == "online" and "🟢" or (status == "idle" and "🌙" or (status == "dnd" and "🔴" or "⚫"))
+                                    local actName = "No Activity"
+                                    if data.data.activities and #data.data.activities > 0 then
+                                        for _, act in ipairs(data.data.activities) do
+                                            if act.type == 0 then actName = "Playing: " .. act.name break end
+                                        end
+                                    end
+                                    lanLbl.Text = emoji .. " " .. (data.data.discord_user.username or "User") .. " | " .. actName
+                                end
+                            end
+                        end)
+                    end
+                end)
+            end
+        end)
+
+        -- AUTO CLAIM
+        local ClaimTab = NebuState.MainWindow:MakeTab({Name = "Auto Claim", Icon = "🏆"})
+        local ClaimSec = ClaimTab:MakeSection({Name = "🏆 Auto-Claim"})
+
+        ClaimSec:AddButton({Name = "🎁 Auto-Redeem All Codes", Callback = function()
+            NebuState.MainWindow:Notify({Title="Codes", Content="Redeeming all known codes...", Type="info"})
+            task.spawn(function()
+                AutoRedeemCodes()
+                NebuState.MainWindow:Notify({Title="Codes", Content="All codes attempted!", Type="success"})
+            end)
+        end})
+
+        ClaimSec:AddButton({Name = "📅 Claim Daily Rewards", Callback = function()
+            pcall(function() ReplicatedStorage.Remotes.Systems.Dailys:FireServer() end)
+            NebuState.MainWindow:Notify({Title="Daily", Content="Daily reward claim attempted!", Type="success"})
+        end})
+
+        ClaimSec:AddButton({Name = "📋 Claim All Quests", Callback = function()
+            NebuState.MainWindow:Notify({Title="Quests", Content="Claiming completed quests...", Type="info"})
+            task.spawn(function()
+                pcall(function()
+                    local playerData = ReplicatedStorage.Players_Data[player.Name]
+                    for _, quest in ipairs(playerData.Quest:GetChildren()) do
+                        if quest:IsA("Folder") and quest:FindFirstChild("Finished") and quest.Finished.Value == true then
+                            pcall(function() ReplicatedStorage.Remotes.Systems.QuestEvent:FireServer("Claim", quest.Names.Value) end)
+                            task.wait(0.2)
+                        end
+                    end
+                end)
+                NebuState.MainWindow:Notify({Title="Quests", Content="All completed quests claimed!", Type="success"})
+            end)
+        end})
+
+        ClaimSec:AddToggle({Name = "🏅 Auto Claim Achievements", Default = false, Callback = function(s)
+            NebuState.AutoAchievements = s
+            if s then
+                NebuState.MainWindow:Notify({Title="Achievements", Content="Auto Claim Achievements ON!", Type="success"})
+                task.spawn(function()
+                    while NebuState.Nebublox_Running and NebuState.AutoAchievements do
+                        pcall(function()
+                            local achData = ReplicatedStorage.Players_Data[player.Name].Achievements
+                            for _, category in ipairs(achData:GetChildren()) do
+                                if category:IsA("Folder") then
+                                    for _, ach in ipairs(category:GetChildren()) do
+                                        if ach:IsA("Folder") and ach:FindFirstChild("Finished") and ach.Finished.Value == true then
+                                            pcall(function() ReplicatedStorage.Remotes.Systems.AchievementEvent:FireServer("Claim", ach.Name, category.Name) end)
+                                            -- Fallback in case "Names" value is expected instead of folder name:
+                                            if ach:FindFirstChild("Names") then
+                                                pcall(function() ReplicatedStorage.Remotes.Systems.AchievementEvent:FireServer("Claim", ach.Names.Value, category.Name) end)
+                                            end
+                                            task.wait(0.2)
+                                        end
+                                    end
+                                end
+                            end
+                        end)
+                        task.wait(5)
+                    end
+                end)
+            else
+                NebuState.MainWindow:Notify({Title="Achievements", Content="Auto Claim Achievements OFF.", Type="warning"})
+            end
+        end})
+
+        ClaimSec:AddToggle({Name = "🎡 Auto Spin Wheel", Default = false, Callback = function(s)
+            NebuState.AutoWheelSpin = s
+            if s then
+                NebuState.MainWindow:Notify({Title="Wheel", Content="Auto wheel spin ON!", Type="success"})
+                task.spawn(function()
+                    while NebuState.Nebublox_Running and NebuState.AutoWheelSpin do
+                        pcall(function() ReplicatedStorage.Remotes.Gamblings.Wheels:FireServer("Release Event") end)
+                        task.wait(4)
+                    end
+                end)
+            else
+                NebuState.MainWindow:Notify({Title="Wheel", Content="Auto wheel spin OFF.", Type="warning"})
+            end
+        end})
+
+        ClaimSec:AddToggle({Name = "🗣️ Auto Claim/Talk to NPCs", Default = false, Callback = function(s)
+            NebuState.AutoTalkActive = s
+            if s then
+                NebuState.MainWindow:Notify({Title="NPCs", Content="Auto Talk ON - Claiming Quests...", Type="success"})
+                task.spawn(function()
+                    while NebuState.Nebublox_Running and NebuState.AutoTalkActive do
+                        pcall(function()
+                            local npcs = workspace:FindFirstChild("NPCs")
+                            if npcs then
+                                for _, npc in ipairs(npcs:GetChildren()) do
+                                    if npc:IsA("Model") then
+                                        game:GetService("ReplicatedStorage").Remotes.Misc.TalkingEvent:FireServer(npc.Name)
+                                    end
+                                end
+                            end
+                        end)
+                        task.wait(5)
+                    end
+                end)
+            else
+                NebuState.MainWindow:Notify({Title="NPCs", Content="Auto Talk OFF.", Type="warning"})
+            end
+        end})
+
+        -- ═══════════════════════════════════════
+        --  FARMING / COMBAT SYSTEM (Ported from Clash)
+        -- ═══════════════════════════════════════
+        local function GetRealEnemyName(model)
+            local name = model.Name
+            local config = model:FindFirstChild("Config")
+            if config and config:FindFirstChild("Name") then name = config.Name.Value end
+            return name
+        end
+
+        local connections = {}
+        local function trackConnection(conn)
+            table.insert(connections, conn)
+            return conn
+        end
+
+        local function IsAlive(model)
+            if not model or not model.Parent then return false end
+            local hum = model:FindFirstChildOfClass("Humanoid")
+            return hum and hum.Health > 0 and not model.Name:find("Training Dummy")
+        end
+
+        local function GetTarget()
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not root then return nil end
+            local best, dist = nil, 1000
+            
+            local targetFolders = {}
+            local worlds = workspace:FindFirstChild("Worlds")
+            if worlds and worlds:FindFirstChild("Targets") then
+                if worlds.Targets:FindFirstChild("Server") then table.insert(targetFolders, worlds.Targets.Server) end
+                if worlds.Targets:FindFirstChild("Clients") then table.insert(targetFolders, worlds.Targets.Clients) end
+            else
+                table.insert(targetFolders, workspace) 
+            end
+
+            for _, folder in ipairs(targetFolders) do
+                local list = (folder == workspace) and folder:GetChildren() or folder:GetDescendants()
+                for _, mob in ipairs(list) do
+                    if mob:IsA("Model") and mob ~= char and IsAlive(mob) then
+                        local isNPC = workspace:FindFirstChild("NPCs") and mob:IsDescendantOf(workspace.NPCs)
+                        local isPlayerUnit = mob:GetFullName():find("Units") or game.Players:GetPlayerFromCharacter(mob)
+                        if not isNPC and not isPlayerUnit then
+                            local rName = GetRealEnemyName(mob)
+                            if table.find(NebuState.SelectedEnemy, "All") or table.find(NebuState.SelectedEnemy, rName) then
+                                local mRoot = mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart
+                                if mRoot then
+                                    local d = (root.Position - mRoot.Position).Magnitude
+                                    if d < dist then best, dist = mob, d end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            return best
+        end
+
+        local CurrentTarget = nil
+        local RunService = game:GetService("RunService")
+        local lastScanTick = 0
+        
+        trackConnection(RunService.Heartbeat:Connect(function()
+            if not NebuState.Nebublox_Running or not NebuState.AutoAttack then return end
+            if player:FindFirstChild("IsTeleporting") or NebuState.IsTeleporting then return end
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+            
+            -- Instant retarget: if target is dead/gone, find next one immediately (throttled to every 0.05s)
+            if not CurrentTarget or not IsAlive(CurrentTarget) then
+                local now = tick()
+                if now - lastScanTick >= 0.01 then
+                    lastScanTick = now
+                    pcall(function() CurrentTarget = GetTarget() end)
+                end
+            end
+
+            if CurrentTarget and IsAlive(CurrentTarget) then
+                local tRoot = CurrentTarget:FindFirstChild("HumanoidRootPart") or CurrentTarget.PrimaryPart
+                if tRoot then 
+                    root.AssemblyLinearVelocity = Vector3.zero
+                    local standPos = tRoot.Position + (Vector3.new(1,0,1).Unit * 5)
+                    root.CFrame = CFrame.lookAt(Vector3.new(standPos.X, tRoot.Position.Y, standPos.Z), tRoot.Position)
+                end
+            end
+        end))
+
+        task.spawn(function()
+            local Packets = nil
+            pcall(function() Packets = require(game:GetService("ReplicatedStorage").Modules.Packets.Managements) end)
+            local atkPackets = {}
+            local deployPacket = nil
+            if Packets then
+                table.insert(atkPackets, Packets:GetPacket("Attack", "Hit"))
+                table.insert(atkPackets, Packets:GetPacket("Attacks", "Damage"))
+                table.insert(atkPackets, Packets:GetPacket("Combat", "Hit"))
+                table.insert(atkPackets, Packets:GetPacket("Combats", "Single"))
+                deployPacket = Packets:GetPacket("Units", "Place") or Packets:GetPacket("Deploy", "Unit")
+            end
+            local combatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") and game:GetService("ReplicatedStorage").Remotes:FindFirstChild("Systems") and game:GetService("ReplicatedStorage").Remotes.Systems:FindFirstChild("CombatEvent")
+            local deployRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") and game:GetService("ReplicatedStorage").Remotes:FindFirstChild("Gameplays") and (game:GetService("ReplicatedStorage").Remotes.Gameplays:FindFirstChild("PlaceUnit") or game:GetService("ReplicatedStorage").Remotes.Gameplays:FindFirstChild("Deploy"))
+
+            while true do
+                if not NebuState.Nebublox_Running then break end
+                if NebuState.AutoAttack then
+                    local char = player.Character
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        -- ATTACK TARGET
+                        if CurrentTarget then
+                            pcall(function()
+                                local weapon = char and char:FindFirstChildWhichIsA("Tool")
+                                if weapon then weapon:Activate() end
+                                for _, packet in ipairs(atkPackets) do
+                                    if packet and packet.send then
+                                        pcall(function() packet.send(CurrentTarget) end)
+                                        pcall(function() packet.send(CurrentTarget, Vector3.new(0, -999, 0), "Melee") end)
+                                    end
+                                end
+                                if combatRemote then
+                                    pcall(function() combatRemote:FireServer("Attack", CurrentTarget) end)
+                                    pcall(function() combatRemote:FireServer("Hit", CurrentTarget) end)
+                                end
+                                pcall(function()
+                                    if buffer and buffer.fromstring then
+                                        local args = { buffer.fromstring("\f\000") }
+                                        game:GetService("ReplicatedStorage"):WaitForChild("ByteNetReliable"):FireServer(unpack(args))
+                                    end
+                                end)
+                            end)
+                        end
+
+                        -- AUTO DEPLOY & RAID TELEPORT
+                        if player:FindFirstChild("OnRaids") or player:FindFirstChild("OnTowers") then
+                            if player:FindFirstChild("OnRaids") then
+                                if NebuState.RaidStartTime == 0 then
+                                    NebuState.RaidStartTime = tick()
+                                    NebuState.RaidTeleported = false
+                                elseif tick() - NebuState.RaidStartTime > 30 and not NebuState.RaidTeleported then
+                                    pcall(function()
+                                        local raidsVis = workspace:FindFirstChild("Raids_Visual")
+                                        if raidsVis then
+                                            local folderName = "Demon Forest_Clients_" .. player.Name
+                                            local raidFolder = raidsVis:FindFirstChild(folderName)
+                                            if raidFolder and raidFolder:FindFirstChild("Stage") then
+                                                root.CFrame = raidFolder.Stage.CFrame * CFrame.new(0, 5, 0)
+                                                NebuState.RaidTeleported = true
+                                                NebuState.MainWindow:Notify({Title="Raid", Content="Teleported to Stage!", Type="success"})
+                                            end
+                                        end
+                                    end)
+                                end
+                            else
+                                NebuState.RaidStartTime = 0
+                                NebuState.RaidTeleported = false
+                            end
+
+                            if deployPacket and deployPacket.send then pcall(function() deployPacket.send(root.Position) end) end
+                            if deployRemote then pcall(function() deployRemote:FireServer(root.Position) end) end
+                        else
+                            NebuState.RaidStartTime = 0
+                            NebuState.RaidTeleported = false
+                        end
+                        
+                        -- AUTO COLLECT DROPS (Visual Folder)
+                        local visualFolder = workspace:FindFirstChild("Visual")
+                        if visualFolder then
+                            local previews = visualFolder:FindFirstChild("Previews")
+                            local playerVis = visualFolder:FindFirstChild("Player")
+
+                            for _, drop in ipairs(visualFolder:GetChildren()) do
+                                if drop:IsA("BasePart") then
+                                    if previews and drop:IsDescendantOf(previews) then continue end
+                                    if playerVis and drop:IsDescendantOf(playerVis) then continue end
+                                    if drop.Name == "Appear" or drop.Name == "Explosion" or drop.Name == "Trails" then continue end
+                                    if drop:FindFirstChild("Currencies") or drop.Name:match("Gold%d+") or drop.Name:match("Chest") then
+                                        drop.CFrame = root.CFrame
+                                    end
+                                end
+                            end
+
+
+
+                            local raidsVis = workspace:FindFirstChild("Raids_Visual")
+                            if raidsVis then
+                                for _, raidFolder in ipairs(raidsVis:GetChildren()) do
+                                    if raidFolder.Name:find(player.Name) then
+                                        local rewards = raidFolder:FindFirstChild("Configs") and raidFolder.Configs:FindFirstChild("Others") and raidFolder.Configs.Others:FindFirstChild("Rewards")
+                                        if rewards then
+                                            local rewardNames = {"Special", "Purple", "Golds"}
+                                            local foundAny = false
+                                            for _, rName in ipairs(rewardNames) do
+                                                local rewardGrp = rewards:FindFirstChild(rName)
+                                                if rewardGrp then
+                                                    local primary = rewardGrp:FindFirstChild("Primary")
+                                                    if primary and primary:IsA("BasePart") then
+                                                        foundAny = true
+                                                        root.CFrame = primary.CFrame * CFrame.new(0, 3, 0)
+                                                        task.wait(0.3)
+                                                        local prompt = primary:FindFirstChildOfClass("ProximityPrompt")
+                                                        if prompt then
+                                                            fireproximityprompt(prompt)
+                                                        else
+                                                            primary.CFrame = root.CFrame
+                                                        end
+                                                        task.wait(0.5)
+                                                    end
+                                                end
+                                            end
+
+                                            -- Leave Raid after collecting rewards
+                                            if foundAny then
+                                                task.wait(1)
+                                                pcall(function()
+                                                    local Packets = require(game:GetService("ReplicatedStorage").Modules.Packets.Managements)
+                                                    local leavePacket = Packets:GetPacket("Matches", "Leave") or Packets:GetPacket("Raids", "Leave")
+                                                    if leavePacket and leavePacket.send then leavePacket.send() end
+                                                end)
+                                            end
+                                        end
+                                        
+                                        local phaseSpecial = raidFolder:FindFirstChild("Configs") and raidFolder.Configs:FindFirstChild("Phase_Special")
+                                        if phaseSpecial then
+                                            local primary = phaseSpecial:FindFirstChild("PrimaryPart") or phaseSpecial:FindFirstChild("Primary")
+                                            if primary and primary:IsA("BasePart") then
+                                                local prompt = primary:FindFirstChildOfClass("ProximityPrompt")
+                                                if prompt then
+                                                    root.CFrame = primary.CFrame * CFrame.new(0, 3, 0)
+                                                    task.wait()
+                                                    fireproximityprompt(prompt)
+                                                else
+                                                    primary.CFrame = root.CFrame
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+
+                        if player:FindFirstChild("OnRaids") or player:FindFirstChild("OnTowers") then
+                            local drops = workspace:FindFirstChild("Drops") or workspace:FindFirstChild("Rewards") or workspace:FindFirstChild("WaveRewards") or workspace:FindFirstChild("Items")
+                            if drops then
+                                for _, drop in ipairs(drops:GetChildren()) do
+                                    if drop:IsA("BasePart") or drop:IsA("Model") then
+                                        local dropPart = drop:IsA("Model") and (drop:FindFirstChild("HumanoidRootPart") or drop:FindFirstChildWhichIsA("BasePart")) or drop
+                                        if dropPart then
+                                            root.CFrame = dropPart.CFrame; task.wait()
+                                            if firetouchinterest then firetouchinterest(root, dropPart, 0); task.wait(); firetouchinterest(root, dropPart, 1) end
+                                            
+                                            -- FIRE CLICK DETECTORS
+                                            local click = dropPart:FindFirstChildOfClass("ClickDetector") or (drop:IsA("Model") and drop:FindFirstChildOfClass("ClickDetector"))
+                                            if click and fireclickdetector then pcall(function() fireclickdetector(click) end) end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    task.wait(0.01)
+                end
+            end
+        end)
+
+        local FarmTab = NebuState.MainWindow:MakeTab({Name = "Auto Farm Engine", Icon = "🌾"})
+        local CombatSec = FarmTab:MakeSection({Name = "Target System"})
+
+        local combRow = CombatSec:AddRow({Columns = 2, Widths = {0.8, 0.2}})
+        NebuState.SelectedEnemy = {"All"}
+        NebuState.SelectedEnemyDropdown = combRow[1]:AddMultiDropdown({
+            Name = "Select Enemy", Options = {"All"}, Default = {"All"}, Callback = function(v) 
+                NebuState.SelectedEnemy = v 
+                CurrentTarget = nil 
+            end
+        })
+
+        combRow[2]:AddButton({Name = "🔄", Primary = true, Center = true, Callback = function()
+            local mobs = {"All"}
+            pcall(function()
+                local targetFolders = {}
+                local worlds = workspace:FindFirstChild("Worlds")
+                if worlds and worlds:FindFirstChild("Targets") then
+                    if worlds.Targets:FindFirstChild("Server") then table.insert(targetFolders, worlds.Targets.Server) end
+                    if worlds.Targets:FindFirstChild("Clients") then table.insert(targetFolders, worlds.Targets.Clients) end
+                else
+                    table.insert(targetFolders, workspace) 
+                end
+
+                for _, folder in ipairs(targetFolders) do
+                    local list = (folder == workspace) and folder:GetChildren() or folder:GetDescendants()
+                    for _, mob in ipairs(list) do
+                        if mob:IsA("Model") and mob ~= player.Character and not mob.Name:find("Training Dummy") then
+                            local isNPC = workspace:FindFirstChild("NPCs") and mob:IsDescendantOf(workspace.NPCs)
+                            local isPlayerUnit = mob:GetFullName():find("Units") or game.Players:GetPlayerFromCharacter(mob)
+                            if not isNPC and not isPlayerUnit then
+                                local rName = GetRealEnemyName(mob)
+                                if not table.find(mobs, rName) then table.insert(mobs, rName) end
+                            end
+                        end
+                    end
+                end
+            end)
+            pcall(function() if NebuState.SelectedEnemyDropdown and NebuState.SelectedEnemyDropdown.Refresh then NebuState.SelectedEnemyDropdown:Refresh(mobs, {"All"}) end end)
+            NebuState.MainWindow:Notify({Title = "Combat", Content = "Found " .. (#mobs-1) .. " enemy types!", Type = "success"})
+        end})
+
+        CombatSec:AddToggle({Name = "⚔️ Auto Attack", Default = false, Callback = function(s) 
+            NebuState.AutoAttack = s 
+        end})
+
+        local FarmSec = FarmTab:MakeSection({Name = "🌍 Worlds & Zones"})
+        local FarmWorlds = {
+            {Name = "Namex Planet", Emoji = "🐉"},
+            {Name = "Colosseum Kingdom", Emoji = "🏟️"}, 
+            {Name = "Demon Forest", Emoji = "🌲"},
+            {Name = "Dungeons Town", Emoji = "🏰"}
+        }
+        
+        NebuState.SelectedFarmWorld = nil
+        NebuState.GachaRunning = false
+        NebuState.AutoDragonballs = false
+        NebuState.AutoGlobalSummon = false
+        NebuState.AutoDungeonLevels = {} -- { [worldName] = "Easy" }
+        NebuState.AutoDungeonEnabled = {} -- { [worldName] = false }
+
+
+        FarmSec:AddParagraph({
+            Title = "⚠️ IMPORTANT: Map & Summon Selection",
+            Content = "You can only pick ONE card from ONE of the worlds in order for this to work properly. Ensure you disable previous worlds before selecting a new one.",
+            Center = true
+        })
+
+        for _, worldData in ipairs(FarmWorlds) do
+            local worldName = worldData.Name
+            local worldLabel = worldData.Emoji .. " " .. worldName
+            local worldSec = FarmTab:MakeSection({Name = worldLabel})
+
+            -- Inject teleport button into the section header line
+            local hdr = worldSec:GetHeader()
+            local hdrParent = hdr.Parent
+            local tpBtn = Instance.new("TextButton")
+            tpBtn.Size = UDim2.new(0, 28, 0, 22)
+            tpBtn.Position = UDim2.new(1, -8, 0, 1)
+            tpBtn.AnchorPoint = Vector2.new(1, 0)
+            tpBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 255)
+            tpBtn.Text = "🗺️"
+            tpBtn.TextSize = 14
+            tpBtn.BorderSizePixel = 0
+            tpBtn.ZIndex = 10
+            tpBtn.Parent = hdrParent
+            pcall(function()
+                local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = tpBtn
+            end)
+            tpBtn.MouseButton1Click:Connect(function()
+                pcall(function()
+                    local mapAssets = ReplicatedStorage:FindFirstChild("Assets") and ReplicatedStorage.Assets:FindFirstChild("Maps")
+                    if mapAssets and mapAssets:FindFirstChild(worldName) then
+                        local spawnPoint = mapAssets[worldName]:FindFirstChild("Points")
+                        if spawnPoint then
+                            local spawn = spawnPoint:FindFirstChildOfClass("Part") or spawnPoint:FindFirstChildOfClass("BasePart")
+                            if spawn and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                                player.Character.HumanoidRootPart.CFrame = spawn.CFrame
+                            end
+                        end
+                    end
+                    local Packets = require(ReplicatedStorage.Modules.Packets.Managements)
+                    local tp = Packets:GetPacket("Teleporters", "Loaders")
+                    if tp then tp.send(worldName) end
+                end)
+            end)
+
+            worldSec:AddToggle({Name = "🎯 Auto Focus", Default = false, Callback = function(s)
+                if s then
+                    NebuState.SelectedFarmWorld = worldName
+                    NebuState.SelectedSummoner = worldName
+                else
+                    if NebuState.SelectedFarmWorld == worldName then
+                        NebuState.SelectedFarmWorld = nil
+                        NebuState.SelectedSummoner = nil
+                    end
+                end
+            end})
+
+            local raidRow = worldSec:AddRow({Columns = 2, Widths = {0.6, 0.4}})
+            NebuState.AutoDungeonLevels[worldName] = "Easy"
+            raidRow[1]:AddDropdown({
+                Name = "⚔️ Raid Level",
+                Options = {"Easy", "Medium", "Hard", "Nightmare"},
+                Default = "Easy",
+                Callback = function(v) NebuState.AutoDungeonLevels[worldName] = v end
+            })
+            raidRow[2]:AddToggle({
+                Name = "Auto",
+                Default = false,
+                Callback = function(s) 
+                    NebuState.AutoDungeonEnabled[worldName] = s
+                    if s then
+                        NebuState.MainWindow:Notify({Title="Raid", Content="Auto Raid active for " .. worldName .. "!", Type="success"})
+                    end
+                end
+            })
+
+
+            if worldName == "Namex Planet" then
+                worldSec:AddToggle({Name = "🐉 Auto Collect Dragon Balls", Default = false, Callback = function(s)
+                    NebuState.AutoDragonballs = s
+                    if s then
+                        NebuState.MainWindow:Notify({Title="Dragon Balls", Content="Scanning for Dragon Balls (1M stud range)...", Type="success"})
+                        task.spawn(function()
+                            while NebuState.Nebublox_Running and NebuState.AutoDragonballs do
+                                pcall(function()
+                                    local char = player.Character
+                                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                                    if not root then return end
+                                    local visualFolder = workspace:FindFirstChild("Visual")
+                                    if not visualFolder then return end
+                                    for _, child in ipairs(visualFolder:GetChildren()) do
+                                        if not NebuState.AutoDragonballs then break end
+                                        if child.Name:match("^DragonBall%d") then
+                                            local spheres = child:FindFirstChild("Spheres")
+                                            if spheres then
+                                                local target = spheres:IsA("BasePart") and spheres or spheres:FindFirstChildWhichIsA("BasePart")
+                                                if target then
+                                                    local dist = (root.Position - target.Position).Magnitude
+                                                    if dist < 1000000 then
+                                                        local savedCFrame = root.CFrame
+                                                        root.CFrame = target.CFrame * CFrame.new(0, 3, 0)
+                                                        task.wait(0.3)
+                                                        local prompt = target:FindFirstChildOfClass("ProximityPrompt") or spheres:FindFirstChildOfClass("ProximityPrompt")
+                                                        if prompt then fireproximityprompt(prompt); task.wait(0.3) end
+                                                        if firetouchinterest then
+                                                            firetouchinterest(root, target, 0); task.wait(0.1); firetouchinterest(root, target, 1)
+                                                        end
+                                                        task.wait(0.2)
+                                                        root.CFrame = savedCFrame
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end)
+                                task.wait(2)
+                            end
+                        end)
+                    else
+                        NebuState.MainWindow:Notify({Title="Dragon Balls", Content="Dragon Ball scanner OFF.", Type="warning"})
+                    end
+                end})
+
+                local namexSummon = worldSec:AddToggle({Name = "Auto Summon", Icon = "rbxassetid://126384034664684", Default = false, Callback = function(s)
+                    NebuState.AutoGlobalSummon = s
+                    if s then
+                        NebuState.MainWindow:Notify({Title="Auto-Summon", Content="Auto Summon active for " .. worldName .. "!", Type="success"})
+                        task.spawn(function()
+                            while NebuState.Nebublox_Running and NebuState.AutoGlobalSummon do
+                                pcall(function()
+                                    local summoner = FindSummoner("Namex Planet")
+                                    if summoner and not player:FindFirstChild("Summon_Debounce") and not player:FindFirstChild("In_Queue") then
+                                        ReplicatedStorage.Remotes.Summoners.RemoteEvent:FireServer(summoner, "Multi")
+                                    end
+                                    
+                                    -- QoL: Fast Skip & Hide Animations
+                                    local pgui = player:FindFirstChild("PlayerGui")
+                                    if pgui then
+                                        local sUI = pgui:FindFirstChild("Summons") or pgui:FindFirstChild("Summon") or pgui:FindFirstChild("SummonUI") or pgui:FindFirstChild("Summon_UI")
+                                        if sUI then sUI.Enabled = false end
+                                    end
+                                end)
+                                task.wait(0.3)
+                            end
+                        end)
+                    end
+                end})
+                pcall(function()
+                    for _, v in ipairs(namexSummon:GetDescendants()) do
+                        if v:IsA("ImageLabel") and v.Name:lower():find("icon") then
+                            v.Size = UDim2.new(0, 32, 0, 32)
+                            v.Position = UDim2.new(0, 5, 0.5, -16)
+                        end
+                    end
+                end)
+
+            elseif worldName == "Colosseum Kingdom" then
+                local fruitGacha = worldSec:AddToggle({Name = "Auto Roll Demon Fruit Gacha", Icon = "rbxassetid://104132445641516", Primary = true, Default = false, Callback = function(s)
+                    NebuState.GachaRunning = s
+                    if s then
+                        NebuState.MainWindow:Notify({Title="Gacha", Content="Auto rolling Demon Fruits via Bytenet...", Type="success"})
+                        task.spawn(function()
+                            while NebuState.Nebublox_Running and NebuState.GachaRunning do
+                                pcall(function()
+                                    local Packets = require(game:GetService("ReplicatedStorage").Modules.Packets.Managements)
+                                    local rollPacket = Packets:GetPacket("Auras", "Roll")
+                                    if rollPacket then rollPacket.send({["AuraType"] = "Devil Fruits"}) end
+                                    
+                                    -- QoL: Fast Skip & Hide Animations
+                                    local pgui = player:FindFirstChild("PlayerGui")
+                                    if pgui then
+                                        local gUI = pgui:FindFirstChild("Rolls") or pgui:FindFirstChild("Roll") or pgui:FindFirstChild("Auras") or pgui:FindFirstChild("Gacha") or pgui:FindFirstChild("Roll_UI")
+                                        if gUI then gUI.Enabled = false end
+                                    end
+                                end)
+                                task.wait(3) 
+                            end
+                        end)
+                    end
+                end})
+                pcall(function()
+                    for _, v in ipairs(fruitGacha:GetDescendants()) do
+                        if v:IsA("ImageLabel") and v.Name:lower():find("icon") then
+                            v.Size = UDim2.new(0, 32, 0, 32)
+                            v.Position = UDim2.new(0, 5, 0.5, -16)
+                        end
+                    end
+                end)
+            elseif worldName == "Demon Forest" then
+                worldSec:AddToggle({Name = "⚔️ Auto Boss Fight", Default = false, Callback = function(s)
+                    NebuState.AutoBossActive = s
+                    if s then
+                        NebuState.MainWindow:Notify({Title="Boss", Content="Auto Boss ON!", Type="success"})
+                        task.spawn(function()
+                            while NebuState.Nebublox_Running and NebuState.AutoBossActive do
+                                pcall(function()
+                                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                                        local root = player.Character.HumanoidRootPart
+                                        local bossEntering = workspace:FindFirstChild("BossFight_Entering")
+                                        if bossEntering then
+                                            local bestDist, targetSpawn = math.huge, nil
+                                            for _, bossPoint in ipairs(bossEntering:GetChildren()) do
+                                                if bossPoint:IsA("Part") then
+                                                    local dist = (bossPoint.Position - root.Position).Magnitude
+                                                    if dist < bestDist then bestDist = dist; targetSpawn = bossPoint end
+                                                end
+                                            end
+                                            if targetSpawn and bestDist > 20 then root.CFrame = targetSpawn.CFrame * CFrame.new(0, 5, 0) end
+                                        end
+                                    end
+                                end)
+                                task.wait(1)
+                            end
+                        end)
+                    else
+                        NebuState.MainWindow:Notify({Title="Boss", Content="Auto Boss OFF.", Type="warning"})
+                    end
+                end})
+
+                local demonSummon = worldSec:AddToggle({Name = "Auto Summon", Icon = "rbxassetid://126384034664684", Default = false, Callback = function(s)
+                    NebuState.AutoGlobalSummon = s
+                    if s then
+                        NebuState.MainWindow:Notify({Title="Auto-Summon", Content="Auto Summon active for " .. worldName .. "!", Type="success"})
+                        task.spawn(function()
+                            while NebuState.Nebublox_Running and NebuState.AutoGlobalSummon do
+                                pcall(function()
+                                    local summoner = FindSummoner("Demon Forest")
+                                    if summoner and not player:FindFirstChild("Summon_Debounce") and not player:FindFirstChild("In_Queue") then
+                                        ReplicatedStorage.Remotes.Summoners.RemoteEvent:FireServer(summoner, "Multi")
+                                    end
+                                    
+                                    -- QoL: Fast Skip & Hide Animations
+                                    local pgui = player:FindFirstChild("PlayerGui")
+                                    if pgui then
+                                        local sUI = pgui:FindFirstChild("Summons") or pgui:FindFirstChild("Summon") or pgui:FindFirstChild("SummonUI") or pgui:FindFirstChild("Summon_UI")
+                                        if sUI then sUI.Enabled = false end
+                                    end
+                                end)
+                                task.wait(0.3)
+                            end
+                        end)
+                    end
+                end})
+                pcall(function()
+                    for _, v in ipairs(demonSummon:GetDescendants()) do
+                        if v:IsA("ImageLabel") and v.Name:lower():find("icon") then
+                            v.Size = UDim2.new(0, 32, 0, 32)
+                            v.Position = UDim2.new(0, 5, 0.5, -16)
+                        end
+                    end
+                end)
+
+            elseif worldName == "Dungeons Town" then
+                local dungeonSummon = worldSec:AddToggle({Name = "Auto Summon", Icon = "rbxassetid://126384034664684", Default = false, Callback = function(s)
+                    NebuState.AutoGlobalSummon = s
+                    if s then
+                        NebuState.MainWindow:Notify({Title="Auto-Summon", Content="Auto Summon active for " .. worldName .. "!", Type="success"})
+                        task.spawn(function()
+                            while NebuState.Nebublox_Running and NebuState.AutoGlobalSummon do
+                                pcall(function()
+                                    local summoner = FindSummoner("Dungeons Town")
+                                    if summoner and not player:FindFirstChild("Summon_Debounce") and not player:FindFirstChild("In_Queue") then
+                                        ReplicatedStorage.Remotes.Summoners.RemoteEvent:FireServer(summoner, "Multi")
+                                    end
+                                    
+                                    -- QoL: Fast Skip & Hide Animations
+                                    local pgui = player:FindFirstChild("PlayerGui")
+                                    if pgui then
+                                        local sUI = pgui:FindFirstChild("Summons") or pgui:FindFirstChild("Summon") or pgui:FindFirstChild("SummonUI") or pgui:FindFirstChild("Summon_UI")
+                                        if sUI then sUI.Enabled = false end
+                                    end
+                                end)
+                                task.wait(0.3)
+                            end
+                        end)
+                    end
+                end})
+                pcall(function()
+                    for _, v in ipairs(dungeonSummon:GetDescendants()) do
+                        if v:IsA("ImageLabel") and v.Name:lower():find("icon") then
+                            v.Size = UDim2.new(0, 32, 0, 32)
+                            v.Position = UDim2.new(0, 5, 0.5, -16)
+                        end
+                    end
+                end)
+
+                worldSec:AddParagraph({Title="🌌 Double Dungeons", Content="Special Nightmare-only raid available in Dungeons Town."})
+                worldSec:AddToggle({Name = "Auto Double Dungeons (Nightmare)", Default = false, Callback = function(s)
+                    NebuState.AutoDoubleDungeon = s
+                    if s then
+                        NebuState.MainWindow:Notify({Title="Raid", Content="Auto Double Dungeons active!", Type="success"})
+                        task.spawn(function()
+                            while NebuState.Nebublox_Running and NebuState.AutoDoubleDungeon do
+                                pcall(function()
+                                    local Packets = require(ReplicatedStorage.Modules.Packets.Managements)
+                                    local raidEntry = Packets:GetPacket("Raids", "Entry")
+                                    local raidGo = Packets:GetPacket("Raids", "Go")
+                                    
+                                    if raidEntry and raidGo then
+                                        local raidFolder = workspace:FindFirstChild("Block_Maps") and workspace.Block_Maps:FindFirstChild("Double Dungeons (Raid)")
+                                        if raidFolder and not player:FindFirstChild("OnRaids") then
+                                            local portal = raidFolder:FindFirstChild("Portal") or raidFolder:FindFirstChild("Entry")
+                                            if portal then
+                                                -- SIMULATE INTERFACE OPENING
+                                                local raidsEvent = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Systems") and ReplicatedStorage.Remotes.Systems:FindFirstChild("RaidsEvent")
+                                                if raidsEvent then
+                                                    firesignal(raidsEvent.OnClientEvent, "Double Dungeons_Unlocked_Phase1", player.Name)
+                                                end
+                                                
+                                                raidEntry.send(portal)
+                                                task.wait(1.5)
+                                                raidGo.send({Difficult = "Nightmare"})
+                                                task.wait(1)
+                                            end
+                                        end
+                                        
+                                        -- The specific deploy/collect logic has been moved to generic global toggles
+                                        
+                                        if not player:FindFirstChild("OnRaids") then -- Not in raid, check for end-of-match UI
+                                            local playerGui = player:FindFirstChild("PlayerGui")
+                                            if playerGui then
+                                                local raidEndUI = playerGui:FindFirstChild("Raid_End_UI") -- Common name for raid end UI
+                                                if raidEndUI and raidEndUI.Enabled then
+                                                    local replayButton = raidEndUI:FindFirstChild("ReplayButton") or raidEndUI:FindFirstChild("PlayAgain")
+                                                    local leaveButton = raidEndUI:FindFirstChild("LeaveButton") or raidEndUI:FindFirstChild("Exit")
+                                                    
+                                                    if replayButton and replayButton:IsA("GuiButton") and replayButton.Visible and replayButton.Active then
+                                                        firesignal(replayButton.MouseButton1Click)
+                                                        task.wait(0.5) -- Wait for click to register
+                                                    elseif leaveButton and leaveButton:IsA("GuiButton") and leaveButton.Visible and leaveButton.Active then
+                                                        firesignal(leaveButton.MouseButton1Click)
+                                                        task.wait(0.5) -- Wait for click to register
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end)
+                                task.wait(2)
+                            end
+                        end)
+                    end
+                end})
+            end -- Closes the if worldName == "Dungeons Town" (and the entire if/elseif chain)
+        end -- Closes the for _, worldData in ipairs(FarmWorlds) do loop
+
+        local FastSec = FarmTab:MakeSection({Name = "⚡ Speed & QoL"})
+        FastSec:AddToggle({Name = "Enable Fast Spin / Skip Roll", Default = false, Callback = function(s)
+            NebuState.AutoFastSpins = s
+            if s then
+                NebuState.MainWindow:Notify({Title="Speed", Content="Fast Spins & Skips ON!", Type="success"})
+            end
+        end})
+
+        FastSec:AddToggle({Name = "🧬 Auto Avatar Upgrade", Default = false, Callback = function(s)
+            NebuState.AutoAvatarUpgrade = s
+            if s then
+                NebuState.MainWindow:Notify({Title="Upgrade", Content="Auto Avatar Upgrade active!", Type="success"})
+                task.spawn(function()
+                    while NebuState.Nebublox_Running and NebuState.AutoAvatarUpgrade do
+                        pcall(function()
+                            -- ByteNet removed per request; implement standard remote here if known
+                        end)
+                        task.wait(1)
+                    end
+                end)
+            end
+        end})
+
+        FastSec:AddToggle({Name = "🖱️ Fire All ClickDetectors", Default = false, Callback = function(s)
+            NebuState.AutoClickDetectors = s
+            if s then
+                NebuState.MainWindow:Notify({Title="Collection", Content="Firing all nearby ClickDetectors!", Type="success"})
+                task.spawn(function()
+                    while NebuState.Nebublox_Running and NebuState.AutoClickDetectors do
+                        pcall(function()
+                            local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                            if root then
+                                for _, d in ipairs(workspace:GetDescendants()) do
+                                    if d:IsA("ClickDetector") and (d.Parent:IsA("BasePart") and (d.Parent.Position - root.Position).Magnitude < 100) then
+                                        pcall(function() fireclickdetector(d) end)
+                                    end
+                                end
+                            end
+                        end)
+                        task.wait(1)
+                    end
+                end)
+            end
+        end})
+
+
+        -- Automatic Raid Floating (Always active during raids)
+        task.spawn(function()
+            while NebuState.Nebublox_Running do
+                if player:FindFirstChild("OnRaids") and NebuState.AutoAttack then
+                    if not NebuState.RaidFloatConn then
+                        NebuState.RaidFloatConn = RunService.Heartbeat:Connect(function()
+                            if not player:FindFirstChild("OnRaids") or not NebuState.AutoAttack then
+                                if NebuState.RaidFloatConn then NebuState.RaidFloatConn:Disconnect(); NebuState.RaidFloatConn = nil end
+                                return
+                            end
+                            pcall(function()
+                                local char = player.Character
+                                local root = char and char:FindFirstChild("HumanoidRootPart")
+                                if root then
+                                    local vel = root.AssemblyLinearVelocity
+                                    if vel.Y < 0 then
+                                        root.AssemblyLinearVelocity = Vector3.new(vel.X, 0, vel.Z)
+                                    end
+                                end
+                            end)
+                        end)
+                    end
+                else
+                    if NebuState.RaidFloatConn then NebuState.RaidFloatConn:Disconnect(); NebuState.RaidFloatConn = nil end
+                end
+                task.wait(1)
+            end
+        end)
+
+        task.spawn(function()
+            while NebuState.Nebublox_Running do
+                if NebuState.AutoFastSpins then
+                    pcall(function()
+                        local pData = ReplicatedStorage:FindFirstChild("Players_Data") and ReplicatedStorage.Players_Data:FindFirstChild(player.Name)
+                        if pData then
+                            local passes = pData:FindFirstChild("Gamepasses")
+                            if passes then
+                                for _, p in ipairs(passes:GetChildren()) do
+                                    if p:IsA("BoolValue") and (p.Name:lower():find("fast") or p.Name:lower():find("skip") or p.Name:lower():find("speed")) then
+                                        p.Value = true
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                end
+                task.wait(1)
+            end
+        end)
+            
+        if not NebuState.SummonVisualHook and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Systems") then
+            local summonVisualEvent = ReplicatedStorage.Remotes.Systems:FindFirstChild("Summon_Visual")
+            if summonVisualEvent and summonVisualEvent:IsA("RemoteEvent") then
+                NebuState.SummonVisualHook = summonVisualEvent.OnClientEvent:Connect(function()
+                    if NebuState.AutoGlobalSummon then
+                        task.spawn(function()
+                            task.wait(0.2)
+                            pcall(function()
+                                local inQueue = player:FindFirstChild("In_Queue")
+                                if inQueue then inQueue:Destroy() end
+                                local debounce = player:FindFirstChild("Summon_Debounce")
+                                if debounce then debounce:Destroy() end
+
+                                workspace.Camera.CameraType = Enum.CameraType.Custom
+                                
+                                local visualFolder = workspace:FindFirstChild("Visual")
+                                if visualFolder then
+                                    for _, p in ipairs(visualFolder:GetChildren()) do
+                                        if p:IsA("Model") and p.Name:find("Summon") then p:Destroy() end
+                                    end
+                                end
+                                
+                                local playerGui = player:FindFirstChild("PlayerGui")
+                                if playerGui then
+                                    local summonUI = playerGui:FindFirstChild("Settings") and playerGui.Settings:FindFirstChild("_Frame") and playerGui.Settings._Frame:FindFirstChild("Usage") and playerGui.Settings._Frame.Usage.BODY:FindFirstChild("Interview")
+                                    if summonUI then
+                                        local regSummon = summonUI:FindFirstChild("Regular Summon UI")
+                                        if regSummon then regSummon.Visible = false end
+                                        local specSummon = summonUI:FindFirstChild("Special Summon UI")
+                                        if specSummon then specSummon.Visible = false end
+                                        
+                                        local uiFolder = playerGui:FindFirstChild("Summon_UI")
+                                        if uiFolder then
+                                            for _, c in ipairs(uiFolder:GetChildren()) do
+                                                if c:IsA("ScreenGui") then c.Enabled = false end
+                                                c.Visible = false
+                                            end
+                                        end
+                                    end
+                                end
+                            end)
+                        end)
+                    end
+                end)
+            end
+        end
+        
+        -- UNIT MANAGER
+        local UnitTab = NebuState.MainWindow:MakeTab({Name = "Unit Manager", Icon = "🎒"})
+        local UnitSec = UnitTab:MakeSection({Name = "🎒 Unit Management"})
+
+        local talentSec = UnitTab:MakeSection({Name = "🧬 Talents Rerolls"})
+        NebuState.TargetTalentUnit = nil
+        NebuState.TargetTalentStat = "Speed"
+        NebuState.AutoTalentReroll = false
+        
+        local talentRow = talentSec:AddRow({Columns = 2, Widths = {0.8, 0.2}})
+        local equippedUnitOptions = {"Select Equipped Unit"}
+        local TalentUnitDrop = talentRow[1]:AddDropdown({
+            Name = "👤 Select Unit", Default = "Select Equipped Unit", Options = equippedUnitOptions,
+            Callback = function(v) NebuState.TargetTalentUnit = v end
+        })
+        
+        talentRow[2]:AddButton({Name = "🔄", Center = true, Callback = function()
+            local newList = {"Select Equipped Unit"}
+            pcall(function()
+                local pd = ReplicatedStorage.Players_Data[player.Name]
+                local slots = pd:FindFirstChild("Slots")
+                if slots then
+                    local equippedSerials = {}
+                    for _, slot in ipairs(slots:GetChildren()) do
+                        if slot:IsA("StringValue") and slot.Value ~= "" then equippedSerials[slot.Value] = true end
+                    end
+                    
+                    for _, u in ipairs(pd.Inventory.Units:GetChildren()) do
+                        if u:IsA("Folder") then
+                            local serial = u:FindFirstChild("Serial")
+                            if serial and equippedSerials[serial.Value] then
+                                local realName = u:FindFirstChild("Real_Names") and u.Real_Names.Value or u.Name
+                                table.insert(newList, realName .. " [" .. u.Name .. "]")
+                            end
+                        end
+                    end
+                end
+            end)
+            if TalentUnitDrop and TalentUnitDrop.Refresh then TalentUnitDrop:Refresh(newList, newList[1]) end
+            NebuState.MainWindow:Notify({Title="Talents", Content="Refreshed equipped units!", Type="info"})
+        end})
+
+        talentSec:AddDropdown({
+            Name = "📊 Desired Stat", Default = "Speed", Options = {"Damage", "Critical", "Speed"}, Center = true,
+            Callback = function(v) NebuState.TargetTalentStat = v end
+        })
+
+        talentSec:AddToggle({Name = "🧬 Auto Reroll Talents", Default = false, Callback = function(s)
+            NebuState.AutoTalentReroll = s
+            if s then
+                if not NebuState.TargetTalentUnit or NebuState.TargetTalentUnit == "Select Equipped Unit" then
+                    NebuState.MainWindow:Notify({Title="Talents", Content="Please select an equipped unit first!", Type="error"})
+                    NebuState.AutoTalentReroll = false
+                    return
+                end
+                
+                NebuState.MainWindow:Notify({Title="Talents", Content="Auto Rerolling for " .. NebuState.TargetTalentStat .. "...", Type="success"})
+                task.spawn(function()
+                    while NebuState.Nebublox_Running and NebuState.AutoTalentReroll do
+                        pcall(function()
+                            local uidMatch = NebuState.TargetTalentUnit:match("%[([^%]]+)%]")
+                            if uidMatch then
+                                local Event = game:GetService("ReplicatedStorage").Remotes.Systems.Potentials_Rolling
+                                firesignal(Event.OnClientEvent, "Update_Units", NebuState.TargetTalentStat)
+                            end
+                        end)
+                        task.wait(2) 
+                    end
+                end)
+            else
+                NebuState.MainWindow:Notify({Title="Talents", Content="Talent Rerolling stopped.", Type="warning"})
+            end
+        end})
+        
+        local unitRow1 = UnitSec:AddRow({Columns = 2, Widths = {0.5, 0.5}})
+        unitRow1[1]:AddButton({Name = "🌟 Equip Best Units", Callback = function()
+            NebuState.MainWindow:Notify({Title="Units", Content="Equipping best units...", Type="info"})
+            task.spawn(function()
+                local Packets = require(ReplicatedStorage.Modules.Packets.Managements)
+                local equipPacket = Packets:GetPacket("Units", "EquipBest")
+                if equipPacket then equipPacket.send() end
+            end)
+        end})
+        unitRow1[2]:AddButton({Name = "🗑️ Sell All Unlocked", Callback = function()
+            NebuState.MainWindow:Notify({Title="Units", Content="Auto-Selling ALL Unlocked Units...", Type="info"})
+            task.spawn(function()
+                local Packets = require(ReplicatedStorage.Modules.Packets.Managements)
+                local sellPacket = Packets:GetPacket("Units", "MultiSold")
+                if sellPacket then
+                    local toSell = {}
+                    local units = ReplicatedStorage.Players_Data[player.Name].Inventory.Units:GetChildren()
+                    for _, u in ipairs(units) do
+                        if u:IsA("Folder") and u:FindFirstChild("IsLock") and u.IsLock.Value == false then
+                            table.insert(toSell, u.Name)
+                        end
+                    end
+                    if #toSell > 0 then
+                        sellPacket.send(toSell)
+                        NebuState.MainWindow:Notify({Title="Units", Content="Sold " .. #toSell .. " unlocked units!", Type="success"})
+                    else
+                        NebuState.MainWindow:Notify({Title="Units", Content="No unlocked units found to sell.", Type="warning"})
+                    end
+                end
+            end)
+        end})
+
+        local sellRow = UnitSec:AddRow({Columns = 2, Widths = {0.55, 0.45}})
+        NebuState.AutoSell = false
+        NebuState.AutoSellRarity = "Rare"
+        
+        sellRow[1]:AddToggle({Name = "🗑️ Auto Sell Unlocked", Default = NebuState.AutoSell, Callback = function(s)
+            NebuState.AutoSell = s
+            if s then
+                task.spawn(function()
+                    while NebuState.Nebublox_Running and NebuState.AutoSell do
+                        pcall(function()
+                            local pd = ReplicatedStorage.Players_Data[player.Name]
+                            local rarityVals = {Common=1, Rare=2, Epic=3, Legendary=4, Mythic=5, Secret=6}
+                            local maxVal = rarityVals[NebuState.AutoSellRarity] or 2
+                            local toSell = {}
+
+                            for _, u in ipairs(pd.Inventory.Units:GetChildren()) do
+                                if u:IsA("Folder") and u:FindFirstChild("IsLock") and u.IsLock.Value == false then
+                                    local r = u:FindFirstChild("Rarity") and rarityVals[u.Rarity.Value] or 0
+                                    if r > 0 and r <= maxVal then table.insert(toSell, u.Name) end
+                                end
+                            end
+
+                            if #toSell > 0 then
+                                local Packets = require(ReplicatedStorage.Modules.Packets.Managements)
+                                local sellPacket = Packets:GetPacket("Units", "MultiSold")
+                                if sellPacket then
+                                    sellPacket.send(toSell)
+                                    NebuState.MainWindow:Notify({Title="Auto Sell", Content="Sold " .. #toSell .. " units!", Type="info"})
+                                end
+                            end
+                        end)
+                        task.wait(3)
+                    end
+                end)
+            end
+        end})
+        
+        sellRow[2]:AddDropdown({Name = "⭐ Max Rarity", Options = {"Common", "Rare", "Epic", "Legendary"}, Default = "Rare", Callback = function(v)
+            NebuState.AutoSellRarity = v
+        end})
+
+        local fuseRow = UnitSec:AddRow({Columns = 2, Widths = {0.55, 0.45}})
+        NebuState.AutoFuse = false
+        NebuState.AutoFuseRarity = "Rare"
+        
+        fuseRow[1]:AddToggle({Name = "⚙️ Auto Fuse to Equipped", Default = NebuState.AutoFuse, Callback = function(s)
+            NebuState.AutoFuse = s
+            if s then
+                task.spawn(function()
+                    while NebuState.Nebublox_Running and NebuState.AutoFuse do
+                        pcall(function()
+                            local pd = ReplicatedStorage.Players_Data[player.Name]
+                            local slots = pd:FindFirstChild("Slots")
+                            if not slots then return end
+
+                            local equippedSerials = {}
+                            for _, slot in ipairs(slots:GetChildren()) do
+                                if slot:IsA("StringValue") and slot.Value ~= "" then equippedSerials[slot.Value] = true end
+                            end
+
+                            local equippedUnits = {}
+                            local junkUnits = {}
+                            local rarityVals = {Common=1, Rare=2, Epic=3, Legendary=4, Mythic=5, Secret=6}
+                            local maxVal = rarityVals[NebuState.AutoFuseRarity] or 2
+
+                            for _, u in ipairs(pd.Inventory.Units:GetChildren()) do
+                                if u:IsA("Folder") then
+                                    local serial = u:FindFirstChild("Serial")
+                                    if serial and equippedSerials[serial.Value] then
+                                        table.insert(equippedUnits, u.Name)
+                                    elseif u:FindFirstChild("IsLock") and u.IsLock.Value == false then
+                                        local r = u:FindFirstChild("Rarity") and rarityVals[u.Rarity.Value] or 0
+                                        if r > 0 and r <= maxVal then table.insert(junkUnits, u.Name) end
+                                    end
+                                end
+                            end
+
+                            if #equippedUnits > 0 and #junkUnits > 0 then
+                                local Packets = require(ReplicatedStorage.Modules.Packets.Managements)
+                                local fusePacket = Packets:GetPacket("Units", "Fusing")
+                                if fusePacket then
+                                    local host = equippedUnits[1]
+                                    local batch = {}
+                                    for i=1, math.min(10, #junkUnits) do table.insert(batch, junkUnits[i]) end
+                                    fusePacket.send({host = host, consume = batch})
+                                end
+                            end
+                        end)
+                        task.wait(3)
+                    end
+                end)
+            end
+        end})
+        
+        fuseRow[2]:AddDropdown({Name = "⭐ Max Rarity", Options = {"Common", "Rare", "Epic", "Legendary"}, Default = "Rare", Callback = function(v)
+            NebuState.AutoFuseRarity = v
+        end})
+
+        local StatSec = UnitTab:MakeSection({Name = "📈 Auto Upgrade Player Stats"})
+        
+        NebuState.SelectedStatToUpgrade = "Damage"
+        local upgradeRow = StatSec:AddRow({Columns = 2, Widths = {0.8, 0.2}})
+        
+        upgradeRow[1]:AddDropdown({
+            Name = "🌟 Select Stat to Upgrade", Options = {"Damage", "Experience", "Lucky", "Gold", "All"}, Default = "Damage",
+            Callback = function(v) NebuState.SelectedStatToUpgrade = v end
+        })
+        
+        StatSec:AddToggle({Name = "⚡ Auto Upgrade Selected Stat", Default = false, Callback = function(s)
+            NebuState.AutoStatUpgrade = s
+            if s then
+                NebuState.MainWindow:Notify({Title="Stats", Content="Auto upgrading " .. NebuState.SelectedStatToUpgrade .. "...", Type="success"})
+                task.spawn(function()
+                    while NebuState.Nebublox_Running and NebuState.AutoStatUpgrade do
+                        pcall(function()
+                            local statsRemote = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Systems"):WaitForChild("Stats")
+                            if statsRemote then
+                                if NebuState.SelectedStatToUpgrade == "All" then
+                                    for _, stat in ipairs({"Damage", "Experience", "Lucky", "Gold"}) do
+                                        pcall(function() statsRemote:FireServer(stat) end)
+                                    end
+                                else
+                                    statsRemote:FireServer(NebuState.SelectedStatToUpgrade)
+                                end
+                            end
+                        end)
+                        task.wait(0.5)
+                    end
+                end)
+            else
+                NebuState.MainWindow:Notify({Title="Stats", Content="Auto Upgrade OFF.", Type="warning"})
+            end
+        end})
+
+        -- ═══════════════════════════════════════════
+        -- AUTO RAID / DUNGEON BACKGROUND LOOP
+        -- (Migrated from Gamemodes to Farm Engine)
+        -- ═══════════════════════════════════════════
+        task.spawn(function()
+            while NebuState.Nebublox_Running do
+                pcall(function()
+                    local activeRaidWorld = nil
+                    for worldName, isEnabled in pairs(NebuState.AutoDungeonEnabled) do
+                        if isEnabled then 
+                            activeRaidWorld = worldName
+                            break
+                        end
+                    end
+
+                    if activeRaidWorld then
+                        if player:FindFirstChild("OnRaids") then
+                            -- Inside raid — auto-farm handles enemies via context-aware targeting
+                        else
+                            pcall(function()
+                                local raidsLobbies = ReplicatedStorage.Remotes.Gameplays.RaidsLobbies
+                                local raidsEvent = ReplicatedStorage.Remotes.Systems.RaidsEvent
+                                local parties = ReplicatedStorage:FindFirstChild("Shared") and ReplicatedStorage.Shared:FindFirstChild("Parties")
+                                local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                                if not root then return end
+
+                                -- Step 1: Find existing party folder
+                                local partyFolder = nil
+                                if parties then
+                                    for _, folder in ipairs(parties:GetChildren()) do
+                                        if folder:FindFirstChild(player.Name .. " _Owners") then
+                                            partyFolder = folder
+                                            break
+                                        end
+                                    end
+                                end
+
+                                -- Step 2: Touch Raids_Entering part to create party
+                                if not partyFolder then
+                                    local raidsEntering = workspace:FindFirstChild("Raids_Entering")
+                                    if raidsEntering then
+                                        for _, entryModel in ipairs(raidsEntering:GetChildren()) do
+                                            if entryModel:IsA("Model") then
+                                                local touchParts = {}
+                                                if entryModel:FindFirstChild("Centers") then
+                                                    for _, p in ipairs(entryModel.Centers:GetDescendants()) do
+                                                        if p:IsA("BasePart") then table.insert(touchParts, p) end
+                                                    end
+                                                end
+                                                if #touchParts == 0 then
+                                                    for _, p in ipairs(entryModel:GetDescendants()) do
+                                                        if p:IsA("BasePart") then table.insert(touchParts, p) end
+                                                    end
+                                                end
+
+                                                for _, touchPart in ipairs(touchParts) do
+                                                    root.CFrame = touchPart.CFrame * CFrame.new(0, 0, 0)
+                                                    task.wait(0.2)
+                                                    if firetouchinterest then
+                                                        firetouchinterest(root, touchPart, 0)
+                                                        task.wait(0.3)
+                                                        firetouchinterest(root, touchPart, 1)
+                                                    end
+                                                    task.wait(0.5)
+                                                    if parties then
+                                                        for _, folder in ipairs(parties:GetChildren()) do
+                                                            if folder:FindFirstChild(player.Name .. " _Owners") then
+                                                                partyFolder = folder
+                                                                break
+                                                            end
+                                                        end
+                                                    end
+                                                    if partyFolder then break end
+                                                end
+                                                if partyFolder then break end
+                                            elseif entryModel:IsA("BasePart") then
+                                                root.CFrame = entryModel.CFrame
+                                                task.wait(0.2)
+                                                if firetouchinterest then
+                                                    firetouchinterest(root, entryModel, 0)
+                                                    task.wait(0.3)
+                                                    firetouchinterest(root, entryModel, 1)
+                                                end
+                                                task.wait(0.5)
+                                                if parties then
+                                                    for _, folder in ipairs(parties:GetChildren()) do
+                                                        if folder:FindFirstChild(player.Name .. " _Owners") then
+                                                            partyFolder = folder
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                                if partyFolder then break end
+                                            end
+                                        end
+                                    end
+                                end
+
+                                -- Step 3: Set world + difficulty, start raid
+                                if partyFolder then
+                                    local diffLevel = NebuState.AutoDungeonLevels[activeRaidWorld] or "Easy"
+                                    task.wait(0.5)
+                                    raidsLobbies:FireServer(partyFolder, "Worlds_" .. activeRaidWorld)
+                                    task.wait(0.5)
+                                    raidsLobbies:FireServer(partyFolder, "Difficulty_" .. diffLevel)
+                                    task.wait(0.5)
+                                    raidsEvent:FireServer(activeRaidWorld, diffLevel)
+                                    raidsLobbies:FireServer(partyFolder, nil, true)
+                                end
+                            end)
+                        end
+                    end
+                end)
+                task.wait(5)
+            end
+        end)
+
+        -- ═══════════════════════════════════════════
+
+        -- ═══════════════════════════════════════════
+        -- UPGRADED: EVENT-DRIVEN SMART MULTITASK
+        -- ═══════════════════════════════════════════
+        local function TeleportToLobby()
+            pcall(function()
+                local Packets = require(game:GetService("ReplicatedStorage").Modules.Packets.Managements)
+                local tpPacket = Packets:GetPacket("Teleporters", "Loaders")
+                if tpPacket and tpPacket.send then tpPacket.send("Lobby") end
+                
+                -- ByteNet Teleport
+                pcall(function()
+                    if buffer and buffer.fromstring then
+                        local args = { buffer.fromstring("\005\005\000Lobby\004\005\000Lobby") }
+                        game:GetService("ReplicatedStorage"):WaitForChild("ByteNetReliable"):FireServer(unpack(args))
+                    end
+                end)
+
+                -- Physical Fallback
+                local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local lobbyArea = workspace:FindFirstChild("Maps") and workspace.Maps:FindFirstChild("Lobby")
+                    if lobbyArea then
+                        local spawnPart = lobbyArea:FindFirstChild("SpawnLocation") or lobbyArea:FindFirstChildWhichIsA("SpawnLocation")
+                        if spawnPart then
+                            root.CFrame = spawnPart.CFrame * CFrame.new(0, 5, 0)
+                        end
+                    end
+                end
+            end)
+        end
+
+        local function HandleMultitaskState()
+            local inRaid = player:FindFirstChild("OnRaids") ~= nil
+            local inTower = player:FindFirstChild("OnTowers") ~= nil
+
+            if inRaid or inTower then
+                if not NebuState.AutoFarmActive then 
+                    NebuState.AutoFarmActive = true 
+                    NebuState.MainWindow:Notify({Title="🔄 Multitask", Content="Entered Gamemode — Auto Farm engaged!", Type="info"})
+                end
+            else
+                if not NebuState.AutoFarmActive then 
+                    NebuState.AutoFarmActive = true 
+                    NebuState.MainWindow:Notify({Title="🔄 Multitask", Content="Returned to World — Resuming world farming!", Type="success"})
+                end
+            end
+        end
+
+        NebuState.MainWindow:Track(player.ChildAdded:Connect(function(child)
+            if child.Name == "OnRaids" or child.Name == "OnTowers" then
+                HandleMultitaskState()
+            end
+        end))
+
+        NebuState.MainWindow:Track(player.ChildRemoved:Connect(function(child)
+            if child.Name == "OnRaids" or child.Name == "OnTowers" then
+                task.wait(1)
+                TeleportToLobby()
+                task.delay(0.5, HandleMultitaskState) 
+            end
+        end))
+
+        -- Event-driven match complete monitor for Auto-Leave
+        pcall(function()
+            local pgui = player:FindFirstChild("PlayerGui")
+            if pgui then
+                local matchesUI = pgui:WaitForChild("Matches", 5)
+                if matchesUI then
+                    NebuState.MainWindow:Track(matchesUI:GetPropertyChangedSignal("Enabled"):Connect(function()
+                        if matchesUI.Enabled then
+                            local resultFrame = matchesUI:FindFirstChild("Results") or matchesUI:FindFirstChild("Victory") or matchesUI:FindFirstChild("Defeat")
+                            if resultFrame and resultFrame.Visible then
+                                local btnList = resultFrame:FindFirstChild("Buttons") or resultFrame
+                                local leaveBtn = btnList:FindFirstChild("Leave") or btnList:FindFirstChild("Next") or btnList:FindFirstChild("Home") or btnList:FindFirstChild("Replay")
+                                
+                                if leaveBtn and typeof(leaveBtn) == "Instance" and leaveBtn:IsA("GuiButton") then
+                                    firesignal(leaveBtn.MouseButton1Click)
+                                    firesignal(leaveBtn.Activated)
+                                    
+                                    -- Backup: Packets
+                                    local Packets = require(game:GetService("ReplicatedStorage").Modules.Packets.Managements)
+                                    local leavePacket = Packets:GetPacket("Matches", "Leave") or Packets:GetPacket("Raids", "Leave")
+                                    if leavePacket and leavePacket.send then leavePacket.send() end
+
+                                    -- Teleport to Lobby
+                                    task.wait(1)
+                                    pcall(function()
+                                        local tpPacket = Packets:GetPacket("Teleporters", "Loaders")
+                                        if tpPacket and tpPacket.send then tpPacket.send("Lobby") end
+                                        
+                                        -- ByteNet Teleport
+                                        pcall(function()
+                                            if buffer and buffer.fromstring then
+                                                local args = { buffer.fromstring("\005\005\000Lobby\004\005\000Lobby") }
+                                                game:GetService("ReplicatedStorage"):WaitForChild("ByteNetReliable"):FireServer(unpack(args))
+                                            end
+                                        end)
+
+                                        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                                        if root then
+                                            local lobbyArea = workspace:FindFirstChild("Maps") and workspace.Maps:FindFirstChild("Lobby")
+                                            if lobbyArea then
+                                                local spawnPart = lobbyArea:FindFirstChild("SpawnLocation") or lobbyArea:FindFirstChildWhichIsA("SpawnLocation")
+                                                if spawnPart then
+                                                    root.CFrame = spawnPart.CFrame * CFrame.new(0, 5, 0)
+                                                end
+                                            end
+                                        end
+                                    end)
+                                end
+                            end
+                        end
+                    end))
+                end
+            end
+        end)
+        -- SETTINGS 
+        local SettingsTab = NebuState.MainWindow:MakeTab({Name = "Settings", Icon = "⚙️"})
+        local SuperVisSec = SettingsTab:MakeSection({Name = "🖥️ Aesthetics, UI & Hacks"})
+
+        SuperVisSec:AddToggle({Name = "🛌 Anti-AFK", Default = false, Callback = function(s)
+            if s then
+                NebuState.AfkConn = player.Idled:Connect(function()
+                    local vu = game:GetService("VirtualUser")
+                    vu:CaptureController()
+                    vu:ClickButton2(Vector2.new())
+                end)
+            else
+                if NebuState.AfkConn then 
+                    NebuState.AfkConn:Disconnect()
+                    NebuState.AfkConn = nil 
+                end
+            end
+        end})
+
+        SuperVisSec:AddToggle({Name = "👻 Noclip", Default = false, Callback = function(s) 
+            NebuState.Noclip = s
+            if s and not NebuState.NoclipLoopConn then
+                NebuState.NoclipLoopConn = RunService.Stepped:Connect(function()
+                    if not NebuState.Noclip then 
+                        NebuState.NoclipLoopConn:Disconnect()
+                        NebuState.NoclipLoopConn = nil 
+                        return 
+                    end
+                    if player.Character then
+                        for _, v in ipairs(player.Character:GetDescendants()) do
+                            if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end
+                        end
+                    end
+                end)
+            end
+        end})
+
+        SuperVisSec:AddToggle({Name = "🚫 Disable Visual Effects (VFX)", Default = false, Callback = function(s)
+            pcall(function()
+                local playerData = ReplicatedStorage:FindFirstChild("Players_Data") and ReplicatedStorage.Players_Data:FindFirstChild(player.Name)
+                if playerData then
+                    local settingsFolder = playerData:FindFirstChild("Settings")
+                    if settingsFolder then
+                        local abilityVFX = settingsFolder:FindFirstChild("Ability VFX")
+                        if abilityVFX then
+                            abilityVFX.Value = not s
+                            NebuState.MainWindow:Notify({Title="VFX", Content=s and "Visual effects are now DISABLED locally! (Boosts FPS)" or "Visual effects are ENABLED.", Type=s and "success" or "warning"})
+                        end
+                    end
+                end
+            end)
+        end})
+
+        SuperVisSec:AddToggle({Name = "👻 Hide Player Cosmetics", Default = false, Callback = function(s)
+            pcall(function()
+                local playerData = ReplicatedStorage:FindFirstChild("Players_Data") and ReplicatedStorage.Players_Data:FindFirstChild(player.Name)
+                if playerData then
+                    local settingsFolder = playerData:FindFirstChild("Settings")
+                    if settingsFolder then
+                        local hideCosmetics = settingsFolder:FindFirstChild("Hide Cosmetics")
+                        if hideCosmetics then
+                            hideCosmetics.Value = s
+                            NebuState.MainWindow:Notify({Title="Cosmetics", Content=s and "All Player Cosmetics HIDDEN! (Boosts FPS)" or "Player Cosmetics VISIBLE.", Type=s and "success" or "warning"})
+                        end
+                    end
+                end
+            end)
+        end})
+
+        SuperVisSec:AddToggle({Name = "🌙 Dark Mode", Default = true, Callback = function(s)
+            pcall(function()
+                if s then
+                    Lighting.Brightness = 0.5
+                    Lighting.GlobalShadows = false
+                    Lighting.ClockTime = 0
+                else
+                    Lighting.Brightness = 2
+                    Lighting.GlobalShadows = true
+                    Lighting.ClockTime = 12
+                end
+            end)
+        end})
+
+        SuperVisSec:AddToggle({Name = "🔕 Mute Notifications", Default = false, Callback = function(s)
+            NebuState.MainWindow._hideNotifications = s
+        end})
+
+        SuperVisSec:AddButton({Name = "FPS Boost", Icon = "🌩️", Callback = function()
+            task.spawn(function() pcall(function()
+                local terrain = workspace:WaitForChild("Terrain", 5)
+                terrain.WaterWaveSize = 0; terrain.WaterWaveSpeed = 0; terrain.WaterReflectance = 0; terrain.WaterTransparency = 0
+                Lighting.GlobalShadows = false; Lighting.FogEnd = 9e9; Lighting.Brightness = 0
+                for _, c in ipairs(Lighting:GetChildren()) do 
+                    if c:IsA("PostEffect") or c:IsA("Atmosphere") or c:IsA("Sky") then c:Destroy() end 
+                end
+                for _, descendant in ipairs(workspace:GetDescendants()) do
+                    if descendant:IsA("BasePart") then descendant.Material = Enum.Material.Plastic; descendant.Reflectance = 0; descendant.CastShadow = false
+                    elseif descendant:IsA("Decal") or descendant:IsA("Texture") then descendant.Transparency = 1
+                    elseif descendant:IsA("ParticleEmitter") or descendant:IsA("Trail") then descendant.Lifetime = NumberRange.new(0, 0)
+                    end
+                end
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            end); NebuState.MainWindow:Notify({Title="Settings", Content="FPS Boost Enabled!", Type="info"}) end)
+        end})
+
+        SuperVisSec:AddButton({Name = "Unlock FPS", Icon = "💥", Callback = function()
+            if setfpscap then
+                setfpscap(999); NebuState.MainWindow:Notify({Title="FPS", Content="FPS Cap removed!", Type="success"})
+            else
+                NebuState.MainWindow:Notify({Title="Error", Content="Executor does not support setfpscap", Type="error"})
+            end
+        end})
+
+        SuperVisSec:AddButton({Name = "Kill UI", Icon = "⛔", Danger = true, Callback = function()
+            NebuState.MainWindow:Destroy()
+            NebuState.Nebublox_Running = false
+        end})
+
+        local SetSec = SettingsTab:MakeSection({Name = "📁 Configuration Management"})
+        local FolderName = "Nebublox"
+        local ConfigsFolder = FolderName .. "/Configs"
+        pcall(function() if not isfolder(FolderName) then makefolder(FolderName) end; if not isfolder(ConfigsFolder) then makefolder(ConfigsFolder) end end)
+
+        local ConfName = ""
+        local function GetConfigs() 
+            local files = {"None"} 
+            pcall(function() 
+                for _, f in ipairs(listfiles(ConfigsFolder)) do 
+                    if f:match("%.json$") then table.insert(files, f:match("([^/\\\\]+)%.json$")) end 
+                end 
+            end) 
+            return files 
+        end
+
+        local confRow1 = SetSec:AddRow({Columns = 2, Widths = {0.8, 0.2}})
+        local ConfDrop = confRow1[1]:AddDropdown({Name = "📂 Saved Profiles", Options = GetConfigs(), Default = "None", Callback = function(v) if v ~= "None" then ConfName = v end end})
+        confRow1[2]:AddButton({Name = "🔄", Primary = true, Center = true, Callback = function()
+            local files = GetConfigs()
+            if ConfDrop and ConfDrop.Refresh then ConfDrop:Refresh(files, files[1]) end
+        end})
+
+        SetSec:AddDivider()
+        SetSec:AddTextbox({Name = "✏️ Profile Name", Placeholder = "Enter config name...", Callback = function(t) ConfName = t end})
+        SetSec:AddDivider()
+
+        local confRow2 = SetSec:AddRow({Columns = 3, Widths = {0.33, 0.33, 0.33}})
+        confRow2[1]:AddButton({Name = "💾 Save", Primary = true, Center = true, Callback = function() 
+            if ConfName ~= "" and ConfName ~= "None" then 
+                pcall(function() writefile(ConfigsFolder.."/"..ConfName..".json", HttpService:JSONEncode(NebuState or {})) end)
+                NebuState.MainWindow:Notify({Title="Config",Content="Saved: "..ConfName,Type="success"}) 
+            end 
+        end})
+        confRow2[2]:AddButton({Name = "📂 Load", Center = true, Callback = function() 
+            if ConfName ~= "" and ConfName ~= "None" then 
+                pcall(function() local p = ConfigsFolder.."/"..ConfName..".json"; if isfile(p) then for k,v in pairs(HttpService:JSONDecode(readfile(p))) do NebuState[k] = v end end end)
+                NebuState.MainWindow:Notify({Title="Config",Content="Loaded: "..ConfName,Type="success"}) 
+            end 
+        end})
+        confRow2[3]:AddButton({Name = "🗑️ Delete", Danger = true, Center = true, Callback = function() 
+            if ConfName ~= "" and ConfName ~= "None" then 
+                pcall(function() delfile(ConfigsFolder.."/"..ConfName..".json") end)
+                NebuState.MainWindow:Notify({Title="Config",Content="Deleted: "..ConfName,Type="error"}) 
+            end 
+        end})
+
+        SetSec:AddButton({Name = "🔄 Reset to Defaults", Danger = true, Callback = function()
+            local defaults = {
+                AutoAttack = false,
+                AutoCollect = false,
+                FastAutoClick = false,
+                Noclip = false,
+                AutoSkipAnimations = false
+            }
+            for k, v in pairs(defaults) do NebuState[k] = v end
+            NebuState.MainWindow:Notify({Title="Settings", Content="Reset to system defaults.", Type="warning"})
+        end})
+    end
+end
+
+-- Start the script directly without key verification
+playBigBang()
